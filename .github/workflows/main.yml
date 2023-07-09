@@ -1,0 +1,109 @@
+name: Pipeline CI/CD
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:    
+    - uses: actions/checkout@v3
+
+    - name: Configurar Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: 20
+
+    - name: Instalar Dependências
+      working-directory: ./app
+      run: npm install
+
+    - name: Build
+      working-directory: ./app
+      run: npx ng build
+
+    - name: Arquivar artefatos de produção
+      uses: actions/upload-artifact@v2
+      with:
+        name: dist
+        path: ./app/dist/app/
+        
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Configurar Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: 20
+
+    - name: Instalar Dependências
+      working-directory: ./app
+      run: npm install
+
+    - name: Teste
+      working-directory: ./app
+      run: npx ng test --watch=false --browsers=ChromeHeadless --no-progress
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      ARM_ACCESS_KEY: ${{ secrets.AZURE_ACCESS_KEY_STORAGE_ACCOUNT }}
+      ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+      ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}    
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Baixar artefatos de build
+      uses: actions/download-artifact@v2
+      with:
+        name: dist
+        path: ./dist/app/
+        
+    - name: Listar arquivos de build
+      run: ls -l ./dist/app/
+
+    - name: Login no Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Configurar Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_wrapper: false    
+
+    - name: Terraform Init
+      run: terraform init
+
+    - name: Terraform Validate
+      run: terraform validate
+
+    - name: Terraform Plan   
+      run: |
+        terraform plan \
+          -var="user_name=${{ secrets.AZURE_VM_USERNAME }}" \
+          -var="user_password=${{ secrets.AZURE_VM_PASSWORD }}"
+
+    - name: Terraform Apply e Implantação do App
+      id: apply_deploy 
+      run: |
+        terraform apply \
+          -var="user_name=${{ secrets.AZURE_VM_USERNAME }}" \
+          -var="user_password=${{ secrets.AZURE_VM_PASSWORD }}" \
+          -auto-approve
+            
+        echo "Aguardando a inicialização da VM..." 
+        sleep 120 
+        sshpass -p ${{ secrets.AZURE_VM_PASSWORD }} scp -o StrictHostKeyChecking=no -r ./dist/app/* ${{ secrets.AZURE_VM_USERNAME }}@$(terraform output -raw public_ip):/tmp/
+        sshpass -p ${{ secrets.AZURE_VM_PASSWORD }} ssh -o StrictHostKeyChecking=no ${{ secrets.AZURE_VM_USERNAME }}@$(terraform output -raw public_ip) 'sudo mv /tmp/* /usr/share/nginx/html/'
