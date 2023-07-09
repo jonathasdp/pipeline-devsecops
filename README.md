@@ -1,4 +1,4 @@
-# Aplicativo Angular implantando em uma VM no Azure com CI/CD.
+# Implantando um app Angular básico em uma VM no Azure com CI/CD.
 
 Este repositório contém um aplicativo básico gerado pelo Angular CLI que está configurado para ser implantado automaticamente no Azure utilizando o Terraform e GitHub Actions.
 
