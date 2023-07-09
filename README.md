@@ -57,4 +57,4 @@ O aplicativo é implantado no Azure como uma VM. Os recursos do Azure são provi
 
 Por favor, trate todos os segredos e chaves com cuidado e nunca os exponha publicamente. Caso suspeite que suas chaves foram comprometidas, revogue-as imediatamente seguindo as práticas recomendadas de segurança.
 
-Por fim, este é um aplicativo de exemplo e pode não seguir todas as práticas recomendadas para ambientes de produção, como otimizações de desempenho, uso de CDNs, etc. Fique à vontade para contribuir e melhorar este projeto conforme necessário.
+Por fim, este é um aplicativo de exemplo e pode não seguir todas as práticas recomendadas para ambientes de produção, como otimizações de esempenho, uso de CDNs, etc. Fique à vontade para contribuir e melhorar este projeto conforme necessário.
